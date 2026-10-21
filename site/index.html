@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hamzamon</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: night sky with the globe in the free area; desktop: side "observatory log" panel + brass timeline dock; phone: globe on top, draggable bottom sheet, compact dock. Single dark look, by choice. */
+:root {
+  --night: #060a15;
+  --lapis: #0f2148;
+  --panel: rgba(9, 16, 34, .88);
+  --panel-solid: #0b1530;
+  --ink: #ece6d6;
+  --muted: #95a1b9;
+  --line: rgba(236, 230, 214, .12);
+  --firuza: #44c5c9;
+  --oltin: #e3b85a;
+  --anor: #e0675a;
+  --display: "Yeseva One", "Georgia", serif;
+  --body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --dockH: 128px;
+  --girih: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23e3b85a' stroke-opacity='.16' stroke-width='1'%3E%3Cpath d='M24 6l5.3 12.7L42 24l-12.7 5.3L24 42l-5.3-12.7L6 24l12.7-5.3z'/%3E%3Cpath d='M11.3 11.3h25.4v25.4H11.3z' transform='rotate(45 24 24) scale(.7) translate(10.3 10.3)'/%3E%3Ccircle cx='24' cy='24' r='4'/%3E%3C/g%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--night); color: var(--ink); font-family: var(--body); font-size: 14px; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--night); }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--firuza); outline-offset: 2px; }
+
+#app { position: relative; height: 100%; overflow: hidden; }
+#stars { position: absolute; inset: 0; }
+#globe { position: absolute; top: 0; left: 0; cursor: grab; }
+
+/* ---------- top bar ---------- */
+.top { position: absolute; top: 0; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 10px;
+  padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(var(--night), rgba(6,10,21,0)); pointer-events: none; }
+.top > * { pointer-events: auto; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; color: inherit; border: 0; background: none; padding: 0; }
+.brand .mark { width: 30px; height: 30px; flex: 0 0 auto; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.55rem; letter-spacing: .01em; line-height: 1; }
+.brand h1 span { color: var(--oltin); }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand .author { font-size: .7rem; opacity: .85; }
+.spacer { flex: 1; }
+.chipbtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: rgba(12,22,48,.72);
+  border-radius: 999px; padding: 0 13px; height: 36px; font-size: .84rem; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); text-decoration: none; color: var(--ink); }
+.chipbtn:hover { border-color: var(--oltin); }
+.chipbtn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+select.chipbtn { appearance: none; -webkit-appearance: none; padding-right: 28px; max-width: 140px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px; background-repeat: no-repeat; background-color: rgba(12,22,48,.72); }
+select.chipbtn option { background: var(--panel-solid); }
+.badge { color: var(--muted); font-size: .76rem; }
+.badge b { color: var(--firuza); font-weight: 600; }
+
+/* ---------- panel (desktop: side; phone: bottom sheet) ---------- */
+#panel { position: absolute; z-index: 4; top: 66px; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--dockH) + 8px); width: 344px;
+  display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.grab { display: none; }
+.tabs { display: flex; gap: 2px; padding: 6px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; background: var(--girih) center / 48px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: 1 0 auto; border: 0; background: none; height: 34px; padding: 0 10px; border-radius: 9px; color: var(--muted); font-size: .82rem; white-space: nowrap; transition: background .2s, color .2s; }
+.tabs button[aria-selected="true"] { background: rgba(68,197,201,.14); color: var(--ink); box-shadow: inset 0 -2px 0 var(--firuza); }
+.pane { flex: 1; overflow-y: auto; padding: 14px 14px 18px; min-height: 0; overscroll-behavior: contain; }
+.pane h3 { margin: 18px 0 8px; font: 500 .68rem/1 var(--body); letter-spacing: .15em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pane h3::after { content: ""; flex: 1; height: 1px; background: var(--line); order: 1; }
+.pane h3 span + span { order: 2; }
+.pane h3:first-child { margin-top: 2px; }
+.list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.item { display: grid; grid-template-columns: 78px 1fr; gap: 10px; align-items: center; min-height: 44px; padding: 6px 8px; border-radius: 9px; border: 0; background: none; text-align: left; width: 100%; transition: background .15s; }
+.item:hover, .item:focus-visible { background: rgba(236,230,214,.06); }
+.item .yr { font-family: var(--mono); font-size: .72rem; color: var(--oltin); font-variant-numeric: tabular-nums; }
+.item .tt { min-width: 0; line-height: 1.35; }
+.item .tt small { display: block; color: var(--muted); font-size: .76rem; margin-top: 2px; }
+.item .who { display: flex; gap: 9px; align-items: center; }
+.item.uz { background: linear-gradient(90deg, rgba(68,197,201,.10), transparent 70%); }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; flex: 0 0 auto; }
+.empty { color: var(--muted); font-size: .84rem; line-height: 1.5; padding: 6px 8px; }
+.statebar { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; padding: 8px; border-radius: 9px; border: 0; background: none; text-align: left; width: 100%; }
+.statebar:hover { background: rgba(236,230,214,.06); }
+.statebar .bar { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.statebar .bar i { display: block; height: 100%; border-radius: 2px; transform-origin: left; animation: grow .6s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes grow { from { transform: scaleX(0); } }
+.statebar .ar { font-family: var(--mono); font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* lanes */
+#lanes svg { width: 100%; display: block; }
+#lanes .lane-name { font: 500 11px var(--body); fill: var(--ink); }
+#lanes .lane-age { font: 500 10px var(--mono); fill: var(--muted); }
+#lanes .axis text { font: 500 10px var(--mono); fill: var(--muted); }
+.legend { display: flex; gap: 14px; font-size: .76rem; color: var(--muted); margin-bottom: 8px; }
+
+/* city */
+.cities { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cities button { border: 1px solid var(--line); background: none; border-radius: 999px; height: 34px; padding: 0 12px; font-size: .82rem; }
+.cities button[aria-pressed="true"] { border-color: var(--firuza); background: rgba(68,197,201,.14); }
+.now-owner { padding: 12px 14px; border-radius: 12px; background: rgba(227,184,90,.08); border: 1px solid rgba(227,184,90,.25); margin-bottom: 6px; }
+.now-owner b { display: block; font-family: var(--display); font-weight: 400; font-size: 1.15rem; margin-top: 4px; }
+.run { display: grid; grid-template-columns: 104px 1fr; gap: 10px; align-items: center; min-height: 40px; padding: 6px 10px; border: 0; background: none; text-align: left; width: 100%; border-radius: 0 9px 9px 0; border-left: 2px solid var(--line); }
+.run:hover { background: rgba(236,230,214,.05); }
+.run.cur { border-left-color: var(--oltin); background: rgba(227,184,90,.06); }
+.run .yr { font-family: var(--mono); font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* about */
+.about p { line-height: 1.6; margin: 0 0 10px; max-width: 62ch; }
+.about .src { font-size: .78rem; color: var(--muted); }
+.about a { color: var(--firuza); }
+.about code { font-family: var(--mono); font-size: .76rem; background: rgba(236,230,214,.06); padding: 1px 5px; border-radius: 4px; }
+.credits { margin-bottom: 16px; padding: 14px; border-radius: 14px; border: 1px solid rgba(227,184,90,.3);
+  background: var(--girih) right -12px top -12px / 64px no-repeat, linear-gradient(135deg, rgba(227,184,90,.09), rgba(68,197,201,.05)); }
+.credits h3 { margin-top: 0 !important; }
+.credits dl { display: grid; gap: 10px; margin: 0; }
+.credits dt { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.credits dd { margin: 2px 0 0; font-family: var(--display); font-size: 1.1rem; }
+.credits dd a { color: var(--firuza); text-decoration: none; }
+.credits .host { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+
+/* ---------- dock ---------- */
+#dock { position: absolute; z-index: 5; left: 0; right: 0; bottom: 0; padding-block: 8px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(rgba(6,10,21,0), rgba(6,10,21,.92) 30%, var(--night)); display: grid; gap: 8px; }
+#uzland { justify-self: start; max-width: 100%; display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 5px 14px 5px 6px; border-radius: 999px;
+  border: 1px solid rgba(68,197,201,.35); background: linear-gradient(90deg, rgba(68,197,201,.16), rgba(12,22,48,.85) 60%); text-align: left; cursor: pointer; overflow: hidden; }
+#uzland:hover { border-color: var(--firuza); }
+#uzland .uzmark { width: 26px; height: 26px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: rgba(68,197,201,.2); }
+#uzland .uzmark svg { width: 16px; height: 16px; }
+#uzland .lab { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--firuza); white-space: nowrap; }
+#uzland b { font-family: var(--display); font-weight: 400; font-size: 1rem; white-space: nowrap; }
+#uzland .ev { color: var(--muted); font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#uzland.flash b { animation: flash .6s; }
+@keyframes flash { 0% { color: var(--oltin); } 100% { color: var(--ink); } }
+.dockrow { display: flex; align-items: center; gap: 16px; }
+#play { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--oltin); background: radial-gradient(circle at 35% 30%, rgba(227,184,90,.4), rgba(227,184,90,.08)); display: grid; place-items: center; position: relative; }
+#play svg { width: 18px; height: 18px; fill: var(--oltin); }
+#play.on::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid var(--oltin); opacity: .5; animation: pulse 1.6s infinite; }
+@keyframes pulse { from { transform: scale(.9); opacity: .6; } to { transform: scale(1.25); opacity: 0; } }
+.yearbox { flex: 0 0 auto; display: flex; flex-direction: column; min-width: 150px; border: 0; background: none; text-align: left; padding: 0; }
+.odo { display: flex; align-items: baseline; gap: 8px; font-family: var(--display); font-size: 2.15rem; line-height: 1; }
+.odo .digits { display: inline-flex; overflow: hidden; height: 1.05em; }
+.odo .dg { display: inline-block; height: 1.05em; overflow: hidden; }
+.odo .dg span { display: flex; flex-direction: column; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+.odo .dg span i { font-style: normal; height: 1.05em; line-height: 1.05em; text-align: center; }
+.odo .era-suffix { font-family: var(--body); font-size: .78rem; color: var(--oltin); }
+.era { font-size: .72rem; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-top: 5px; }
+#yearInput { width: 120px; height: 40px; font-family: var(--display); font-size: 1.6rem; background: rgba(12,22,48,.8); border: 1px solid var(--oltin); border-radius: 10px; padding: 0 10px; }
+.track { flex: 1; min-width: 0; position: relative; padding-top: 16px; }
+.track input { width: 100%; appearance: none; -webkit-appearance: none; background: none; height: 30px; margin: 0; position: relative; z-index: 2; touch-action: none; }
+.track input::-webkit-slider-runnable-track { height: 30px; background: none; }
+.track input::-moz-range-track { height: 30px; background: none; }
+.track input::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: 4px; border-radius: 50%; background: var(--ink); border: 4px solid var(--oltin); box-shadow: 0 0 0 7px rgba(227,184,90,.18), 0 2px 8px rgba(0,0,0,.5); }
+.track input::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 4px solid var(--oltin); }
+.eras { position: absolute; left: 11px; right: 11px; top: 29px; height: 5px; display: flex; border-radius: 3px; overflow: hidden; pointer-events: none; }
+.eras i { height: 100%; }
+.eras i + i { box-shadow: inset 1px 0 0 var(--night); }
+.ticks { position: absolute; left: 11px; right: 11px; top: 0; height: 14px; }
+.ticks span { position: absolute; transform: translateX(-50%); font-family: var(--mono); font-size: .64rem; color: var(--muted); white-space: nowrap; cursor: pointer; padding: 0 2px; }
+.ticks span:hover { color: var(--ink); }
+.evmarks { position: absolute; left: 11px; right: 11px; top: 37px; height: 6px; pointer-events: none; }
+.evmarks i { position: absolute; width: 2px; height: 6px; background: var(--oltin); opacity: .45; border-radius: 1px; }
+.evmarks i.uz { background: var(--firuza); opacity: .95; height: 8px; }
+#speed { flex: 0 0 auto; width: 44px; height: 36px; border: 1px solid var(--line); background: rgba(12,22,48,.72); border-radius: 10px; font-family: var(--mono); font-size: .78rem; }
+#speed:hover { border-color: var(--oltin); }
+
+/* ---------- card ---------- */
+#card { position: absolute; z-index: 7; top: 66px; left: max(16px, env(safe-area-inset-left, 0px)); width: 370px; max-height: calc(100% - var(--dockH) - 84px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--panel-solid); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px; box-shadow: 0 24px 70px rgba(0,0,0,.5);
+  animation: cardIn .38s cubic-bezier(.2,.8,.2,1); }
+@keyframes cardIn { from { transform: translateY(14px) scale(.98); opacity: 0; } }
+#card .kicker { font: 500 .68rem/1 var(--body); letter-spacing: .15em; text-transform: uppercase; color: var(--oltin); display: flex; gap: 8px; align-items: center; }
+#card h2 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; line-height: 1.15; margin: 10px 0 6px; text-wrap: balance; }
+#card .meta { font-family: var(--mono); font-size: .74rem; color: var(--muted); line-height: 1.6; }
+#card p { line-height: 1.6; margin: 12px 0 0; }
+#card .close { position: absolute; top: 10px; right: 10px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: rgba(6,10,21,.7); display: grid; place-items: center; font-size: .9rem; }
+#card .links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+#card .links a { color: var(--firuza); font-size: .82rem; text-decoration: none; border-bottom: 1px solid rgba(68,197,201,.35); }
+#card .sub { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+#card .sub h4 { margin: 0 0 6px; font: 500 .68rem/1 var(--body); letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+#card .fallback { font-size: .72rem; color: var(--muted); font-style: italic; }
+.uztag { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 4px 10px; border-radius: 999px; font-size: .74rem; color: var(--firuza); background: rgba(68,197,201,.12); border: 1px solid rgba(68,197,201,.3); }
+
+/* avatars & media */
+.av { flex: 0 0 auto; display: inline-grid; place-items: center; border-radius: 50%; overflow: hidden; position: relative;
+  font-family: var(--display); color: var(--night); background: radial-gradient(circle at 35% 30%, #f3e3b4, var(--oltin)); box-shadow: 0 0 0 2px var(--night), 0 0 0 3px var(--ring, var(--oltin)); }
+.av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.av.sm { width: 24px; height: 24px; font-size: .62rem; }
+.av.md { width: 34px; height: 34px; font-size: .8rem; }
+.av.lg { width: 96px; height: 96px; font-size: 2rem; box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--ring, var(--oltin)), 0 10px 30px rgba(0,0,0,.45); }
+.av.ca { --ring: var(--firuza); background: radial-gradient(circle at 35% 30%, #c9f1f1, var(--firuza)); }
+.media { margin: -18px -18px 14px; position: relative; aspect-ratio: 16 / 9; max-width: calc(100% + 36px); overflow: hidden; border-radius: 16px 16px 0 0; background: var(--lapis); }
+.media img { width: 100%; height: 100%; object-fit: cover; display: block; animation: kenburns 14s ease-out both; }
+@keyframes kenburns { from { transform: scale(1.08); } to { transform: scale(1); } }
+.media .ph { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 3.2rem; color: rgba(236,230,214,.92);
+  background: radial-gradient(circle at 30% 20%, var(--phc, #44c5c9) 0, transparent 55%), var(--girih) center / 56px, var(--lapis); }
+.media::after { content: ""; position: absolute; inset: auto 0 0; height: 45%; background: linear-gradient(transparent, var(--panel-solid)); pointer-events: none; }
+.credit { font-size: .66rem; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+.credit a { color: var(--muted); }
+.portrait { display: flex; gap: 16px; align-items: center; margin: 12px 0 4px; }
+.portrait h2 { margin: 0 0 6px !important; }
+.gpin { pointer-events: auto; cursor: pointer; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 3px; transition: transform .2s; }
+.gpin:hover { transform: translate(-50%, -50%) scale(1.15); }
+.gpin .av { animation: popin .5s cubic-bezier(.2,1.4,.4,1) both; }
+.gpin span.nm { font: 500 10px var(--body); color: var(--ink); background: rgba(6,10,21,.78); padding: 1px 6px; border-radius: 6px; white-space: nowrap; opacity: 0; transition: opacity .2s; }
+.gpin:hover span.nm { opacity: 1; }
+.gcity { pointer-events: none; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 4px; }
+.gcity i { width: 7px; height: 7px; border-radius: 50%; background: #ece6d6; box-shadow: 0 0 9px rgba(236,230,214,.55); }
+.gcity span { font: 500 11px var(--body); color: #ece6d6; white-space: nowrap; text-shadow: 0 1px 5px rgba(6,10,21,.95); }
+@keyframes popin { from { transform: scale(0); } }
+
+/* paradox */
+#paradox { position: absolute; z-index: 8; left: 50%; top: 72px; transform: translateX(-50%); width: min(520px, calc(100% - 32px));
+  background: var(--panel-solid); border: 1px solid rgba(227,184,90,.4); border-radius: 16px; padding: 18px; box-shadow: 0 24px 70px rgba(0,0,0,.55); animation: cardIn .35s; }
+#paradox .kicker { font: 500 .68rem/1 var(--body); letter-spacing: .15em; text-transform: uppercase; color: var(--oltin); }
+#paradox h2 { font-family: var(--display); font-weight: 400; font-size: 1.3rem; line-height: 1.3; margin: 10px 0 14px; text-wrap: balance; }
+#paradox svg { width: 100%; height: 70px; display: block; }
+#paradox svg text { font: 500 10px var(--mono); fill: var(--muted); }
+#paradox .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
+
+/* ---------- intro ---------- */
+#intro { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding-block: 24px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
+  background: radial-gradient(ellipse at 50% 40%, rgba(15,33,72,.55), rgba(6,10,21,.94) 70%); transition: opacity .7s, visibility .7s; }
+#intro.gone { opacity: 0; visibility: hidden; }
+#intro .in { max-width: 560px; text-align: center; display: grid; gap: 16px; justify-items: center; }
+#intro .in > * { animation: rise .8s cubic-bezier(.2,.8,.2,1) both; }
+#intro .in > *:nth-child(2) { animation-delay: .1s; } #intro .in > *:nth-child(3) { animation-delay: .2s; } #intro .in > *:nth-child(4) { animation-delay: .3s; } #intro .in > *:nth-child(5) { animation-delay: .4s; }
+@keyframes rise { from { transform: translateY(16px); opacity: 0; } }
+#intro .star { width: 64px; height: 64px; }
+#intro .star path { stroke-dasharray: 160; stroke-dashoffset: 160; animation: draw 1.6s .2s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+#intro .kick { font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--firuza); }
+#intro h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(2rem, 6vw, 3.1rem); line-height: 1.08; text-wrap: balance; }
+#intro h2 em { font-style: normal; color: var(--oltin); }
+#intro p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 1rem; max-width: 46ch; }
+#intro .go { height: 50px; padding: 0 26px; border-radius: 999px; border: 1px solid var(--oltin); background: linear-gradient(135deg, rgba(227,184,90,.35), rgba(227,184,90,.12)); font-weight: 600; font-size: 1rem; }
+#intro .go:hover { background: rgba(227,184,90,.4); }
+#intro .by { font-size: .74rem; color: var(--muted); }
+#intro .by b { color: var(--ink); font-weight: 500; }
+#intro .langs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#intro .langs button { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: none; font-size: .8rem; color: var(--muted); }
+#intro .langs button[aria-pressed="true"] { color: var(--ink); border-color: var(--firuza); }
+
+#loading { position: absolute; inset: 0; display: grid; place-items: center; z-index: 3; pointer-events: none; color: var(--muted); font-size: .85rem; letter-spacing: .1em; }
+#loading[hidden] { display: none; }
+
+/* ---------- phone ---------- */
+@media (max-width: 760px) {
+  :root { --dockH: 146px; }
+  .top { padding-block: 8px; gap: 8px; }
+  .brand p, .badge, .chipbtn .lbl { display: none; }
+  .brand h1 { font-size: 1.3rem; }
+  .brand .mark { width: 26px; height: 26px; }
+  .chipbtn { height: 38px; padding: 0 11px; }
+  select.chipbtn { max-width: 118px; }
+  #panel { top: auto; left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); width: auto;
+    bottom: calc(var(--dockH) + 4px); height: 44%; border-radius: 18px; transition: height .32s cubic-bezier(.2,.8,.2,1); }
+  #panel[data-snap="peek"] { height: 58px; }
+  #panel[data-snap="full"] { height: calc(100% - var(--dockH) - 64px); }
+  #panel[data-snap="peek"] .pane { visibility: hidden; }
+  .grab { display: block; height: 16px; width: 100%; border: 0; background: none; padding: 0; touch-action: none; cursor: grab; position: relative; flex: 0 0 auto; }
+  .grab::before { content: ""; position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(236,230,214,.28); }
+  .tabs { padding-top: 0; background: none; }
+  .tabs button { height: 36px; font-size: .8rem; }
+  #card { left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); width: auto; top: auto;
+    bottom: calc(var(--dockH) + 4px); max-height: min(72%, calc(100% - var(--dockH) - 64px)); border-radius: 18px; animation-name: sheetIn; }
+  @keyframes sheetIn { from { transform: translateY(40px); opacity: 0; } }
+  #dock { gap: 6px; padding-block: 6px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  #uzland { justify-self: stretch; min-height: 34px; gap: 8px; }
+  #uzland .lab { display: none; }
+  #uzland b { font-size: .92rem; }
+  .dockrow { flex-wrap: wrap; gap: 10px 12px; }
+  .yearbox { min-width: 0; flex: 1; }
+  .odo { font-size: 1.75rem; }
+  .era { margin-top: 3px; }
+  .track { order: 3; flex-basis: 100%; padding-top: 14px; }
+  .ticks span.mid { display: none; }
+  #play { width: 46px; height: 46px; }
+  #paradox { top: 58px; }
+  #paradox h2 { font-size: 1.12rem; }
+  .item { grid-template-columns: 70px 1fr; }
+}
+@media (max-width: 380px) { select.chipbtn { max-width: 96px; } .brand h1 { font-size: 1.15rem; } }
+@media (prefers-reduced-motion: reduce) {
+  .odo .dg span, #panel { transition: none; }
+  #card, #paradox, .media img, .gpin .av, #intro .in > *, .statebar .bar i, #play.on::after { animation: none; }
+  #intro .star path { stroke-dashoffset: 0; animation: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div id="globe" aria-label="Globus"></div>
+  <div id="loading" data-i="loading"></div>
+
+  <header class="top">
+    <button class="brand" id="brandBtn" type="button">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l3.5 8.5L28 14l-8.5 3.5L16 26l-3.5-8.5L4 14l8.5-3.5z" fill="none" stroke="#e3b85a" stroke-width="1.6"/><path d="M6.1 6.1l7.4 3.4M25.9 6.1l-3.4 7.4M25.9 25.9l-7.4-3.4M6.1 25.9l3.4-7.4" stroke="#44c5c9" stroke-width="1.4" stroke-linecap="round"/><circle cx="16" cy="14" r="2.6" fill="#44c5c9"/></svg>
+      <span><h1>Ham<span>zamon</span></h1><p data-i="tagline"></p><p class="author" id="brandAuthor"></p></span>
+    </button>
+    <div class="spacer"></div>
+    <a class="chipbtn badge" id="nazarBadge" href="https://nazarai.uz" target="_blank" rel="noopener"></a>
+    <button class="chipbtn" id="paradoxBtn" type="button" aria-label="Paradox"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg><span class="lbl" data-i="paradox"></span></button>
+    <select class="chipbtn" id="lang" aria-label="Til / Язык / Language"></select>
+  </header>
+
+  <aside id="panel" data-snap="half">
+    <button class="grab" id="grab" type="button" aria-label="Panel"></button>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="now" aria-selected="true" data-i="tab_now"></button>
+      <button role="tab" data-tab="lanes" aria-selected="false" data-i="tab_lanes"></button>
+      <button role="tab" data-tab="city" aria-selected="false" data-i="tab_city"></button>
+      <button role="tab" data-tab="about" aria-selected="false" data-i="tab_about"></button>
+    </div>
+    <div class="pane" id="pane-now"></div>
+    <div class="pane" id="pane-lanes" hidden><div id="lanes"></div></div>
+    <div class="pane" id="pane-city" hidden></div>
+    <div class="pane about" id="pane-about" hidden></div>
+  </aside>
+
+  <section id="card" hidden></section>
+  <section id="paradox" hidden></section>
+
+  <footer id="dock">
+    <button id="uzland" type="button">
+      <span class="uzmark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1l1.8 4.2L14 7l-4.2 1.8L8 13l-1.8-4.2L2 7l4.2-1.8z" fill="#44c5c9"/></svg></span>
+      <span class="lab" data-i="uzland"></span><b id="uzOwner">…</b><span class="ev" id="uzEvent"></span>
+    </button>
+    <div class="dockrow">
+      <button id="play" type="button" aria-label="Play"><svg viewBox="0 0 16 16"><path id="playIcon" d="M4 2.5v11l9-5.5z"/></svg></button>
+      <button class="yearbox" id="yearbox" type="button"><span class="odo"><span class="digits" id="digits"></span><span class="era-suffix" id="suffix"></span></span><span class="era" id="eraName"></span></button>
+      <div class="track">
+        <div class="ticks" id="ticks"></div>
+        <div class="eras" id="eras"></div>
+        <input type="range" id="slider" min="0" max="1000" step="0.5" value="750" aria-label="Yil">
+        <div class="evmarks" id="evmarks"></div>
+      </div>
+      <button id="speed" type="button" aria-label="Speed">2×</button>
+    </div>
+  </footer>
+
+  <section id="intro">
+    <div class="in">
+      <svg class="star" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="none" stroke="#e3b85a" stroke-width="1.6"/><path d="M12 12l14 7M52 12l-7 14M52 52l-14-7M12 52l7-14" fill="none" stroke="#44c5c9" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <div class="kick">Hamzamon</div>
+      <h2 id="introTitle"></h2>
+      <p id="introText"></p>
+      <button class="go" id="introGo" type="button"></button>
+      <div class="langs" id="introLangs"></div>
+      <div class="by" id="introBy"></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.1/dist/globe.gl.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="content.js"></script>
+<script src="content2.js"></script>
+<script src="content3.js"></script>
+<script>
+(() => {
+/* ---------- tillar: yangi til qo'shish = LANGS ga qator + STR ga tarjimalar ---------- */
+const LANGS = [
+  { code: "uz", label: "O‘zbekcha" },
+  { code: "uz-cyrl", label: "Ўзбекча", translitFrom: "uz" },
+  { code: "ru", label: "Русский" },
+  { code: "en", label: "English" },
+];
+const STR = {
+  loading: { uz: "Xarita yuklanmoqda…", ru: "Загружаем карту…", en: "Loading the map…" },
+  tagline: { uz: "Dunyo tarixi O‘zbekiston nigohida", ru: "История мира глазами Узбекистана", en: "World history through Uzbek eyes" },
+  paradox: { uz: "Vaqt jumbog‘i", ru: "Парадокс времени", en: "Time paradox" },
+  tab_now: { uz: "Ayni paytda", ru: "Тем временем", en: "Meanwhile" },
+  tab_lanes: { uz: "Hamzamonlar", ru: "Современники", en: "Contemporaries" },
+  tab_city: { uz: "Mening shahrim", ru: "Мой город", en: "My city" },
+  tab_about: { uz: "Loyiha haqida", ru: "О проекте", en: "About" },
+  events: { uz: "Voqealar", ru: "События", en: "Events" },
+  people_alive: { uz: "Shu yili yashaganlar", ru: "Жили в этот год", en: "Alive this year" },
+  states_big: { uz: "Eng katta davlatlar", ru: "Крупнейшие государства", en: "Largest states" },
+  states_n: { uz: "{n} ta davlat", ru: "{n} государств", en: "{n} states" },
+  none_events: { uz: "Bu yillar uchun voqealar hali qo‘shilmagan. Vaqt shkalasini suring yoki ▶ ni bosing.", ru: "Для этих лет событий пока нет. Подвиньте шкалу или нажмите ▶.", en: "No events added for these years yet. Move the timeline or press ▶." },
+  none_people: { uz: "Ro‘yxatdagi shaxslardan hech kim bu yili yashamagan.", ru: "Никто из людей в списке не жил в этот год.", en: "Nobody on the list was alive this year." },
+  age: { uz: "{n} yoshda", ru: "{n} лет", en: "aged {n}" },
+  born_in: { uz: "{n} yildan keyin tug‘iladi", ru: "родится через {n} лет", en: "born in {n} years" },
+  lanes_limit: { uz: "Eng yaqin {n} ta hayot chizig‘i ko‘rsatilmoqda, yana {m} tasi yashirilgan.", ru: "Показаны {n} ближайших линий жизни, ещё {m} скрыто.", en: "Showing the {n} closest lifelines; {m} more are hidden." },
+  lanes_hint: { uz: "Oltin chiziq tanlangan yil. Ismni bosing, uning hamzamonlari ochiladi.", ru: "Золотая линия — выбранный год. Нажмите на имя, чтобы увидеть его современников.", en: "The gold line is the chosen year. Tap a name to see their contemporaries." },
+  legend_ca: { uz: "Markaziy Osiyo", ru: "Средняя Азия", en: "Central Asia" },
+  legend_world: { uz: "Dunyo", ru: "Мир", en: "World" },
+  city_pick: { uz: "Shaharni tanlang: uning yerida qaysi davlatlar hukm surganini ko‘rasiz.", ru: "Выберите город и посмотрите, какие государства правили на его земле.", en: "Pick a city to see which states ruled its land." },
+  city_now: { uz: "{y} yilda bu yer", ru: "В {y} году эта земля —", en: "In {y} this land was" },
+  city_none: { uz: "Davlat chegarasidan tashqarida", ru: "Вне границ государств", en: "Outside state borders" },
+  city_history: { uz: "Hukmdor davlatlar", ru: "Чьей была земля", en: "Who held the land" },
+  city_loading: { uz: "Barcha davrlar hisoblanmoqda…", ru: "Считаем все эпохи…", en: "Working through every era…" },
+  neighbours: { uz: "Qo‘shnilar", ru: "Соседи", en: "Neighbours" },
+  time_pause: { uz: "To‘xtatish", ru: "Пауза", en: "Pause" },
+  open_wikidata: { uz: "Wikidata", ru: "Wikidata", en: "Wikidata" },
+  open_wiki: { uz: "Vikipediya", ru: "Википедия", en: "Wikipedia" },
+  state: { uz: "Davlat", ru: "Государство", en: "State" },
+  person: { uz: "Shaxs", ru: "Человек", en: "Person" },
+  existed: { uz: "Mavjud bo‘lgan", ru: "Существовало", en: "Existed" },
+  area_then: { uz: "Shu yildagi maydoni", ru: "Площадь в этот год", en: "Area this year" },
+  km2: { uz: "ming km²", ru: "тыс. км²", en: "thousand km²" },
+  same_time: { uz: "Shu paytda dunyoda", ru: "В это же время в мире", en: "Meanwhile in the world" },
+  contemporaries: { uz: "Hamzamonlari", ru: "Современники", en: "Contemporaries" },
+  overlap: { uz: "{n} yil birga yashagan", ru: "{n} лет жили одновременно", en: "{n} years overlapping" },
+  not_translated: { uz: "Tarjima hali yo‘q, asl nomi ko‘rsatilgan", ru: "Перевода пока нет, показано оригинальное название", en: "No translation yet" },
+  par_kicker: { uz: "Vaqt jumbog‘i", ru: "Парадокс времени", en: "Time paradox" },
+  par_text: { uz: "«{b}» «{c}»ga «{a}»dan ko‘ra yaqinroq.", ru: "«{b}» ближе к событию «{c}», чем к «{a}».", en: "“{b}” is closer to “{c}” than to “{a}”." },
+  par_more: { uz: "Yana bittasi", ru: "Ещё один", en: "Another one" },
+  par_close: { uz: "Yopish", ru: "Закрыть", en: "Close" },
+  years: { uz: "{n} yil", ru: "{n} лет", en: "{n} years" },
+  bc: { uz: "mil. avv.", ru: "до н. э.", en: "BC" },
+  era_bronze: { uz: "Ilk sivilizatsiyalar", ru: "Ранние цивилизации", en: "Early civilisations" },
+  era_ancient: { uz: "Antik davr", ru: "Античность", en: "Antiquity" },
+  era_middle: { uz: "O‘rta asrlar", ru: "Средние века", en: "Middle Ages" },
+  era_early: { uz: "Yangi davr", ru: "Новое время", en: "Early modern" },
+  era_modern: { uz: "Eng yangi davr", ru: "Новейшее время", en: "Modern era" },
+  cat_siyosat: { uz: "Siyosat", ru: "Политика", en: "Politics" },
+  cat_jang: { uz: "Jang", ru: "Война", en: "War" },
+  cat_fan: { uz: "Fan", ru: "Наука", en: "Science" },
+  cat_madaniyat: { uz: "Madaniyat", ru: "Культура", en: "Culture" },
+  cat_shahar: { uz: "Shahar", ru: "Город", en: "City" },
+  about_html: {
+    uz: "<p><b>Hamzamon</b> — dunyo tarixini bir vaqtda ko‘rsatadigan globus. Vaqt shkalasini suring: davlat chegaralari o‘zgaradi, «Ayni paytda» paneli shu yillardagi voqea va shaxslarni yig‘adi.</p><p>Bu prototip: {ev} ta voqea, {pp} ta shaxs, 1 587 ta davlat chegarasi (mil. avv. 3400 – 2024). Markaziy Osiyo alohida e’tiborda.</p><p><b>Yangi til qo‘shish.</b> Interfeys matnlari <code>STR</code> lug‘atida, kontent esa har bir yozuvdagi <code>{uz, ru, en}</code> maydonlarida. Yangi til uchun <code>LANGS</code>ga qator qo‘shiladi va tarjimalar yoziladi; tarjima bo‘lmasa, keyingi til ko‘rsatiladi. O‘zbek kirill yozuvi lotinchadan avtomatik o‘giriladi.</p>",
+    ru: "<p><b>Hamzamon</b> — глобус, на котором видна вся мировая история сразу. Двигайте шкалу: границы меняются, а панель «Тем временем» собирает события и людей этих лет.</p><p>Это прототип: {ev} событий, {pp} человек, границы 1 587 государств (3400 до н. э. – 2024). Особое внимание — Средней Азии.</p><p><b>Как добавить язык.</b> Строки интерфейса лежат в словаре <code>STR</code>, контент — в полях <code>{uz, ru, en}</code> каждой записи. Для нового языка добавьте строку в <code>LANGS</code> и переводы; если перевода нет, показывается следующий язык. Узбекская кириллица получается из латиницы автоматически.</p>",
+    en: "<p><b>Hamzamon</b> is a globe that shows all of world history at once. Move the timeline: borders change, and the Meanwhile panel gathers the events and people of those years.</p><p>This is a prototype: {ev} events, {pp} people and borders for 1,587 states (3400 BC – 2024), with a focus on Central Asia.</p><p><b>Adding a language.</b> Interface strings live in the <code>STR</code> dictionary and content in each record’s <code>{uz, ru, en}</code> fields. Add a row to <code>LANGS</code> and the translations; missing text falls back to the next language. Uzbek Cyrillic is transliterated from Latin automatically.</p>"
+  },
+  uzland: { uz: "Ayni paytda O‘zbekiston zaminida", ru: "В это время на земле Узбекистана", en: "Meanwhile on Uzbek land" },
+  uzland_none: { uz: "davlat chegaralaridan tashqarida", ru: "вне границ государств", en: "outside state borders" },
+  uzland_last: { uz: "so‘nggi voqea: {t} ({y})", ru: "последнее событие: {t} ({y})", en: "latest: {t} ({y})" },
+  uz_tag: { uz: "O‘zbekiston zaminida", ru: "На земле Узбекистана", en: "On Uzbek land" },
+  speed: { uz: "Tezlik", ru: "Скорость", en: "Speed" },
+  year_jump: { uz: "Yilni kiriting (mil. avv. uchun minus)", ru: "Введите год (до н. э. — с минусом)", en: "Type a year (minus for BC)" },
+  intro_title: { uz: "Dunyo tarixi <em>O‘zbekiston</em> nigohida", ru: "История мира глазами <em>Узбекистана</em>", en: "World history through the eyes of <em>Uzbekistan</em>" },
+  intro_text: { uz: "Vaqt shkalasini suring: dunyoda nima bo‘layotganini va ayni o‘sha yili O‘zbekiston zaminida kim hukm surganini ko‘rasiz. Ajdodlarimiz fir’avnlar, Sezar va Leonardoning hamzamonlari bo‘lgan.", ru: "Двигайте шкалу времени и смотрите, что происходило в мире и кто в тот же год правил на земле Узбекистана. Наши предки были современниками фараонов, Цезаря и Леонардо.", en: "Move the timeline to see what was happening in the world and who ruled Uzbek land in that same year. Our ancestors were contemporaries of the pharaohs, Caesar and Leonardo." },
+  intro_go: { uz: "Globusni ochish", ru: "Открыть глобус", en: "Open the globe" },
+  credits_title: { uz: "Mualliflar", ru: "Авторы", en: "Credits" },
+  credit_author: { uz: "Loyiha muallifi", ru: "Автор проекта", en: "Project author" },
+  author_short: { uz: "muallif", ru: "автор", en: "author" },
+  credit_dev: { uz: "Dasturchi", ru: "Разработчик", en: "Developer" },
+  credit_support: { uz: "Ko‘magida", ru: "При поддержке", en: "Supported by" },
+  name_diana: { uz: "Xamrayeva Diana", ru: "Хамраева Диана", en: "Diana Xamrayeva" },
+  name_dev: { uz: "Xamrayev Xurshidbek", ru: "Хамраев Хуршидбек", en: "Khurshidbek Khamraev" },
+  sources_html: {
+    uz: "Chegaralar: Cliopatria (Seshat Global History Databank), CC BY 4.0. Quruqlik: Natural Earth (public domain). Matnlar: Hamzamon. Kutubxonalar: globe.gl, three.js, d3, topojson (MIT/ISC).",
+    ru: "Границы: Cliopatria (Seshat Global History Databank), CC BY 4.0. Суша: Natural Earth (public domain). Тексты: Hamzamon. Библиотеки: globe.gl, three.js, d3, topojson (MIT/ISC).",
+    en: "Borders: Cliopatria (Seshat Global History Databank), CC BY 4.0. Land: Natural Earth (public domain). Texts: Hamzamon. Libraries: globe.gl, three.js, d3, topojson (MIT/ISC)."
+  }
+};
+
+/* ---------- o'zbek lotin -> kirill ---------- */
+const L2C_MULTI = [["O‘","Ў"],["o‘","ў"],["G‘","Ғ"],["g‘","ғ"],["Oʻ","Ў"],["oʻ","ў"],["Gʻ","Ғ"],["gʻ","ғ"],["O'","Ў"],["o'","ў"],["G'","Ғ"],["g'","ғ"],
+  ["Sh","Ш"],["sh","ш"],["SH","Ш"],["Ch","Ч"],["ch","ч"],["CH","Ч"],["Yo","Ё"],["yo","ё"],["Yu","Ю"],["yu","ю"],["Ya","Я"],["ya","я"],["Ye","Е"],["ye","е"]];
+const L2C = { a:"а",b:"б",d:"д",e:"е",f:"ф",g:"г",h:"ҳ",i:"и",j:"ж",k:"к",l:"л",m:"м",n:"н",o:"о",p:"п",q:"қ",r:"р",s:"с",t:"т",u:"у",v:"в",x:"х",y:"й",z:"з","’":"ъ","'":"ъ" };
+function latinToCyr(text) {
+  // HTML teglari va kod ichini o'zgartirmaymiz
+  return text.split(/(<[^>]+>|<code>.*?<\/code>)/g).map((part) => {
+    if (part.startsWith("<")) return part;
+    let s = part.replace(/(^|[^A-Za-z‘ʻ'’])([Ee])/g, (m, p, e) => p + (e === "E" ? "Э" : "э"));
+    for (const [a, b] of L2C_MULTI) s = s.split(a).join(b);
+    return s.replace(/[A-Za-z’']/g, (ch) => { const lo = L2C[ch.toLowerCase()]; if (!lo) return ch; return ch === ch.toLowerCase() ? lo : lo.toUpperCase(); });
+  }).join("");
+}
+
+let lang = "uz";
+try { const saved = localStorage.getItem("hz-lang"); if (saved && LANGS.some((l) => l.code === saved)) lang = saved; } catch (e) {}
+const langDef = () => LANGS.find((l) => l.code === lang);
+// matn tanlash: kerakli til -> transliteratsiya manbai -> en -> uz
+function pickText(obj) {
+  if (!obj) return "";
+  const def = langDef();
+  if (obj[lang]) return obj[lang];
+  if (def.translitFrom && obj[def.translitFrom]) return latinToCyr(obj[def.translitFrom]);
+  return obj.en || obj.uz || "";
+}
+const t = (key, vars) => { let s = pickText(STR[key]) || key; if (vars) for (const k in vars) s = s.split("{" + k + "}").join(vars[k]); return s; };
+const isFallback = (obj) => obj && !obj[lang] && !(langDef().translitFrom && obj[langDef().translitFrom]);
+
+function polityName(n) {
+  const tr = HZ_POLITY_NAMES[n];
+  if (tr) { const v = pickText({ ...tr, en: n }); return v; }
+  return n.replace(/^\(|\)$/g, "");
+}
+
+/* ---------- vaqt shkalasi (bo'lakli: qadimiy davr siqilgan) ---------- */
+const SEG = [[0, -3400], [240, -500], [520, 1000], [790, 1800], [1000, 2024]];
+function posToYear(p) {
+  for (let i = 1; i < SEG.length; i++) if (p <= SEG[i][0]) {
+    const [p0, y0] = SEG[i - 1], [p1, y1] = SEG[i];
+    let y = Math.round(y0 + (y1 - y0) * (p - p0) / (p1 - p0)); return y === 0 ? 1 : y;
+  }
+  return 2024;
+}
+function yearToPos(y) {
+  for (let i = 1; i < SEG.length; i++) if (y <= SEG[i][1]) {
+    const [p0, y0] = SEG[i - 1], [p1, y1] = SEG[i]; return p0 + (p1 - p0) * (y - y0) / (y1 - y0);
+  }
+  return 1000;
+}
+function fmtYear(y) {
+  if (y < 0) return lang === "uz" || lang === "uz-cyrl" ? t("bc") + " " + (-y) : (-y) + " " + t("bc");
+  return String(y);
+}
+function eraKey(y) { return y < -800 ? "era_bronze" : y < 500 ? "era_ancient" : y < 1500 ? "era_middle" : y < 1914 ? "era_early" : "era_modern"; }
+function windowFor(y) { return y < -500 ? 120 : y < 1000 ? 60 : y < 1800 ? 30 : 12; }
+
+/* ---------- ranglar ---------- */
+const PALETTE = ["#2f6fb3", "#44c5c9", "#e3b85a", "#e0675a", "#5fae7c", "#c77d4a", "#8c78c9", "#d9c38f", "#3a9aa8", "#b55f86"];
+function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+const colorOf = (n) => PALETTE[hash(n) % PALETTE.length];
+const rgba = (hex, a) => { const v = parseInt(hex.slice(1), 16); return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${a})`; };
+const CAT_COLOR = { siyosat: "#7aa7e6", jang: "#e0675a", fan: "#44c5c9", madaniyat: "#e3b85a", shahar: "#5fae7c" };
+
+/* ---------- holat ---------- */
+let IMG = {};
+function initials(name) { const w = name.replace(/[«»"()]/g, "").split(/\s+/).filter((x) => x.length > 1 && !/^(al|ibn|abu|da|de|II)$/i.test(x)); return ((w[0] || "?")[0] + ((w[1] || "")[0] || "")).toUpperCase(); }
+function avatar(p, size) {
+  const name = pickText(p.n), im = IMG["p:" + p.id];
+  const inner = im ? `<img src="images/${esc(im.file)}" alt="" loading="lazy">` : esc(initials(name));
+  return `<span class="av ${size} ${p.r === "ca" ? "ca" : ""}" aria-hidden="true">${inner}</span>`;
+}
+function creditLine(im) {
+  if (!im) return "";
+  return `<div class="credit">${esc(im.author)} · ${esc(im.license)} · <a href="${esc(im.source)}" target="_blank" rel="noopener">Wikimedia Commons</a></div>`;
+}
+let UZ = null; // O'zbekiston zamonaviy chegarasi (Natural Earth)
+const UZ_POINTS = ["samarqand", "buxoro", "xiva", "toshkent", "namangan", "termiz"];
+const inUz = (ll) => UZ ? d3.geoContains(UZ, ll) : false;
+const state = { year: 1424, slicesYears: [], slices: new Map(), sliceYear: null, polities: {}, hover: null, selCity: null, playing: false, speed: 2, land: [] };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ---------- yulduzlar ---------- */
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sc = $("stars"), sx = sc.getContext("2d"); let stars = [];
+function sizeStars() {
+  const dpr = Math.min(devicePixelRatio || 1, 2); sc.width = innerWidth * dpr; sc.height = innerHeight * dpr; sc.style.width = innerWidth + "px"; sc.style.height = innerHeight + "px";
+  sx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  stars = Array.from({ length: Math.round(innerWidth * innerHeight / 3500) }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: Math.random() * 1.1 + .2, p: Math.random() * 6.28, s: .4 + Math.random() * 1.2, g: Math.random() < .12 }));
+}
+function drawStars(ts) {
+  sx.clearRect(0, 0, innerWidth, innerHeight);
+  const grd = sx.createRadialGradient(innerWidth * .5, innerHeight * .45, 0, innerWidth * .5, innerHeight * .45, Math.max(innerWidth, innerHeight) * .7);
+  grd.addColorStop(0, "#0d1a38"); grd.addColorStop(1, "#060a15"); sx.fillStyle = grd; sx.fillRect(0, 0, innerWidth, innerHeight);
+  for (const s of stars) {
+    const a = reduce ? .7 : .45 + .45 * Math.sin(s.p + ts / 1000 * s.s);
+    sx.fillStyle = s.g ? `rgba(227,184,90,${a})` : `rgba(236,230,214,${a})`; sx.beginPath(); sx.arc(s.x, s.y, s.r, 0, 6.283); sx.fill();
+  }
+  if (!reduce) requestAnimationFrame(drawStars);
+}
+sizeStars(); requestAnimationFrame(drawStars);
+
+/* ---------- globus ---------- */
+const globe = new Globe($("globe"), { animateIn: true })
+  .backgroundColor("rgba(0,0,0,0)")
+  .showAtmosphere(true).atmosphereColor("#44c5c9").atmosphereAltitude(.17)
+  .polygonsTransitionDuration(450)
+  .polygonCapColor((d) => d.__land ? "rgba(52,64,92,.85)" : rgba(colorOf(d.properties.n), d === state.hover ? .85 : .55))
+  .polygonSideColor((d) => d.__land ? "rgba(0,0,0,0)" : rgba(colorOf(d.properties.n), .25))
+  .polygonStrokeColor((d) => d.__land ? "rgba(0,0,0,0)" : state.uzOwners && state.uzOwners.has(d.properties.n) ? "rgba(227,184,90,.95)" : "rgba(236,230,214,.4)")
+  .polygonAltitude((d) => d.__land ? .003 : d === state.hover ? .028 : .011)
+  .polygonLabel((d) => d.__land ? "" : `<div style="font:500 13px Golos Text,sans-serif;background:rgba(10,18,38,.92);border:1px solid rgba(236,230,214,.15);padding:6px 9px;border-radius:8px;color:#ece6d6">${esc(polityName(d.properties.n))}</div>`)
+  .onPolygonHover((d) => { state.hover = d && !d.__land ? d : null; globe.polygonAltitude(globe.polygonAltitude()); $("globe").style.cursor = state.hover ? "pointer" : "grab"; })
+  .onPolygonClick((d) => { if (d && !d.__land) openState(d); })
+  .pointLat((d) => d.ll[1]).pointLng((d) => d.ll[0]).pointAltitude(.03).pointRadius(.42)
+  .pointColor((d) => CAT_COLOR[d.c] || "#e3b85a")
+  .pointLabel((d) => `<div style="font:500 13px Golos Text,sans-serif;background:rgba(10,18,38,.92);border:1px solid rgba(227,184,90,.4);padding:6px 9px;border-radius:8px;color:#ece6d6"><span style="font-family:JetBrains Mono,monospace;color:#e3b85a;font-size:11px">${esc(fmtYear(d.y))}</span><br>${esc(pickText(d.t))}</div>`)
+  .onPointClick((d) => openEvent(d, true))
+  .ringLat((d) => d.ll[1]).ringLng((d) => d.ll[0])
+  .ringColor((d) => (tt) => rgba(CAT_COLOR[d.c] || "#e3b85a", Math.max(0, 1 - tt)))
+  .ringMaxRadius(3.2).ringPropagationSpeed(1.6).ringRepeatPeriod(1400)
+  .arcStartLat((d) => d[0][1]).arcStartLng((d) => d[0][0]).arcEndLat((d) => d[1][1]).arcEndLng((d) => d[1][0])
+  .arcColor(() => ["rgba(68,197,201,.15)", "rgba(227,184,90,.95)"]).arcStroke(.55).arcAltitudeAutoScale(.25)
+  .arcDashLength(.3).arcDashGap(.2).arcDashInitialGap(() => Math.random()).arcDashAnimateTime(reduce ? 0 : 3200)
+  .labelLat((d) => d.ll[1]).labelLng((d) => d.ll[0]).labelText((d) => pickText(d.n)).labelSize(1.1).labelDotRadius(.55)
+  .labelColor(() => "#ece6d6").labelResolution(3).labelAltitude(.035);
+
+globe.htmlLat((d) => d.ll[1]).htmlLng((d) => d.ll[0]).htmlAltitude(.04)
+  .htmlElement((p) => {
+    if (p.city) {
+      const el = document.createElement("div"); el.className = "gcity";
+      el.innerHTML = `<i></i><span>${esc(pickText(p.n))}</span>`;
+      return el;
+    }
+    const el = document.createElement("div"); el.className = "gpin"; el.title = pickText(p.n);
+    el.innerHTML = avatar(p, "md") + `<span class="nm">${esc(pickText(p.n))}</span>`;
+    el.addEventListener("click", (ev) => { ev.stopPropagation(); openPerson(p); });
+    return el;
+  });
+globe.pathPoints((d) => d).pathPointLat((p) => p[1]).pathPointLng((p) => p[0]).pathPointAlt(.016)
+  .pathColor(() => ["rgba(68,197,201,.95)", "rgba(227,184,90,.95)"]).pathStroke(1.4)
+  .pathDashLength(.04).pathDashGap(.012).pathDashAnimateTime(reduce ? 0 : 24000).pathTransitionDuration(0);
+const mat = globe.globeMaterial(); mat.color.set("#0b1d3d"); if (mat.emissive) mat.emissive.set("#081530"); if ("shininess" in mat) mat.shininess = 8;
+const isPhone = () => innerWidth <= 760;
+globe.pointOfView({ lat: 38, lng: 62, altitude: isPhone() ? 2.9 : 2.3 });
+const ctr = globe.controls(); ctr.autoRotate = !reduce; ctr.autoRotateSpeed = .35; ctr.enableDamping = true;
+ctr.addEventListener("start", () => { ctr.autoRotate = false; });
+function layout() {
+  const dockH = $("dock").offsetHeight; document.documentElement.style.setProperty("--dockH", dockH + "px");
+  let w = innerWidth, h = innerHeight, left = 0;
+  if (isPhone()) {
+    const snap = $("panel").dataset.snap;
+    const sheet = snap === "peek" ? 62 : snap === "full" ? h * .25 : h * .44 + 4;
+    h = Math.max(240, h - dockH - sheet + 30);
+  } else if (innerWidth > 1100) { w = innerWidth - 376; }
+  globe.width(w).height(h); $("globe").style.left = left + "px";
+}
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { layout(); sizeStars(); renderLanes(); }, 120); });
+
+/* ---------- ma'lumot yuklash ---------- */
+async function loadSlice(y) {
+  if (state.slices.has(y)) return state.slices.get(y);
+  const p = fetch(`b/${y}.json`).then((r) => r.json()).then((tp) => {
+    const obj = Object.values(tp.objects)[0];
+    const fc = topojson.feature(tp, obj).features.filter((f) => f.geometry);
+    fc.forEach((f) => { f.__c = d3.geoCentroid(f); });
+    return fc;
+  });
+  state.slices.set(y, p); return p;
+}
+function sliceFor(y) { let s = state.slicesYears[0]; for (const v of state.slicesYears) if (v <= y) s = v; return s; }
+
+let renderToken = 0;
+async function applyYear(y, opts = {}) {
+  state.year = y;
+  renderYear();
+  const sy = sliceFor(y);
+  if (sy !== state.sliceYear || opts.force) {
+    const tok = ++renderToken;
+    const feats = await loadSlice(sy);
+    if (tok !== renderToken) return;
+    state.sliceYear = sy; state.feats = feats;
+    updateUzOwners();
+    globe.polygonsData([...state.land, ...feats]);
+    renderNow(); renderCity();
+  } else { renderNow(true); renderCity(true); }
+  const win = windowFor(y);
+  const evs = HZ_EVENTS.filter((e) => Math.abs(e.y - y) <= win);
+  globe.pointsData(evs).ringsData(reduce ? [] : evs);
+  globe.arcsData(y >= -138 && y <= 1500 ? HZ_SILK : []);
+  renderUzEvent();
+  refreshPins();
+  if (!$("pane-lanes").hidden) renderLanes();
+}
+function refreshPins() {
+  const y = state.year, c = state.selCity;
+  const alivePins = HZ_PEOPLE.filter((p) => p.b <= y && y <= p.d)
+    .sort((a, b) => (a.r === "ca" ? 0 : 1) - (b.r === "ca" ? 0 : 1)).slice(0, 14);
+  const pinKey = alivePins.map((p) => p.id).join(",") + "|" + (c ? c.id : "") + "|" + lang;
+  if (pinKey === state.pinKey) return;
+  state.pinKey = pinKey;
+  globe.htmlElementsData(c ? alivePins.concat([{ ll: c.ll, n: c.n, city: true }]) : alivePins);
+}
+
+/* ---------- "Ayni paytda O'zbekiston zaminida" ---------- */
+function updateUzOwners() {
+  const counts = new Map();
+  for (const id of UZ_POINTS) {
+    const c = HZ_CITIES.find((x) => x.id === id); if (!c) continue;
+    const owner = (state.feats || []).filter((f) => d3.geoContains(f, c.ll)).sort((a, b) => a.properties.a - b.properties.a)[0];
+    const n = owner ? owner.properties.n : null;
+    counts.set(n, (counts.get(n) || 0) + 1);
+  }
+  const named = [...counts.entries()].filter(([n]) => n).sort((a, b) => b[1] - a[1]).map(([n]) => n);
+  state.uzOwners = new Set(named);
+  const txt = named.length ? named.slice(0, 2).map(polityName).join(" · ") + (named.length > 2 ? ` +${named.length - 2}` : "") : t("uzland_none");
+  const b = $("uzOwner");
+  if (b.textContent !== txt) { b.textContent = txt; const r = $("uzland"); r.classList.remove("flash"); void r.offsetWidth; r.classList.add("flash"); }
+}
+function renderUzEvent() {
+  const y = state.year;
+  const last = HZ_EVENTS.filter((e) => e.uz && e.y <= y).sort((a, b) => b.y - a.y)[0];
+  $("uzEvent").textContent = last ? t("uzland_last", { t: pickText(last.t), y: fmtYear(last.y) }) : "";
+  state.uzLast = last || null;
+}
+
+/* ---------- yil ko'rsatkichi (odometr) ---------- */
+function renderYear() {
+  const y = state.year, s = String(Math.abs(y)), box = $("digits");
+  if (box.childElementCount !== s.length) {
+    box.innerHTML = s.split("").map(() => `<span class="dg"><span>${[0,1,2,3,4,5,6,7,8,9].map((n) => `<i>${n}</i>`).join("")}</span></span>`).join("");
+  }
+  [...box.children].forEach((dg, i) => { dg.firstChild.style.transform = `translateY(${-s[i] * 1.05}em)`; });
+  $("suffix").textContent = y < 0 ? t("bc") : "";
+  $("eraName").textContent = t(eraKey(y));
+  $("slider").setAttribute("aria-valuetext", fmtYear(y));
+}
+
+/* ---------- "Ayni paytda" ---------- */
+function eventItem(e) {
+  return `<li><button class="item${e.uz ? " uz" : ""}" data-ev="${e.id}"><span class="yr">${esc(fmtYear(e.y))}</span><span class="tt"><span class="dot" style="background:${CAT_COLOR[e.c]}"></span>${esc(pickText(e.t))}<small>${esc(t("cat_" + e.c))}</small></span></button></li>`;
+}
+function renderNow(light) {
+  const y = state.year, win = windowFor(y);
+  const evs = HZ_EVENTS.filter((e) => Math.abs(e.y - y) <= win).sort((a, b) => Math.abs(a.y - y) - Math.abs(b.y - y));
+  const alive = HZ_PEOPLE.filter((p) => p.b <= y && y <= p.d);
+  const feats = (state.feats || []).slice().sort((a, b) => b.properties.a - a.properties.a);
+  const maxA = feats[0] ? feats[0].properties.a : 1;
+  $("pane-now").innerHTML = `
+    <h3><span>${t("events")}</span><span>±${win}</span></h3>
+    ${evs.length ? `<ul class="list">${evs.map(eventItem).join("")}</ul>` : `<div class="empty">${t("none_events")}</div>`}
+    <h3><span>${t("people_alive")}</span></h3>
+    ${alive.length ? `<ul class="list">${alive.map((p) => `<li><button class="item" data-pp="${p.id}"><span class="yr">${esc(t("age", { n: y - p.b }))}</span><span class="tt who">${avatar(p, "md")}<span>${esc(pickText(p.n))}<small>${esc(pickText(p.o))}</small></span></span></button></li>`).join("")}</ul>` : `<div class="empty">${t("none_people")}</div>`}
+    <h3><span>${t("states_big")}</span><span>${t("states_n", { n: feats.length })}</span></h3>
+    <div class="list">${feats.slice(0, 8).map((f) => `<button class="statebar" data-st="${esc(f.properties.n)}"><span>${esc(polityName(f.properties.n))}</span><span class="ar">${Math.round(f.properties.a).toLocaleString("ru-RU")}</span><span class="bar"><i style="width:${Math.max(3, f.properties.a / maxA * 100)}%;background:${colorOf(f.properties.n)}"></i></span></button>`).join("")}</div>`;
+}
+
+/* ---------- Hamzamonlar (hayot chiziqlari) ---------- */
+function renderLanes() {
+  const el = $("lanes"); if ($("pane-lanes").hidden) return;
+  const y = state.year, span = y < 0 ? 400 : y < 1500 ? 250 : 150;
+  const MAX_LANES = 40;
+  const pool = HZ_PEOPLE.filter((p) => p.d >= y - span && p.b <= y + span);
+  const rank = (p) => (p.b <= y && y <= p.d ? 0 : 1e6) + Math.min(Math.abs(p.b - y), Math.abs(p.d - y));
+  const hidden = Math.max(0, pool.length - MAX_LANES);
+  const people = pool.slice().sort((a, b) => rank(a) - rank(b)).slice(0, MAX_LANES).sort((a, b) => a.b - b.b);
+  const W = el.clientWidth || 300, rowH = 26, top = 22, H = top + people.length * rowH + 10;
+  const x = d3.scaleLinear().domain([y - span, y + span]).range([0, W]);
+  const ticks = x.ticks(4);
+  el.innerHTML = `<div class="legend"><span><span class="dot" style="background:var(--firuza)"></span>${t("legend_ca")}</span><span><span class="dot" style="background:#7d8aa6"></span>${t("legend_world")}</span></div>
+  <svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(t("tab_lanes"))}">
+    <g class="axis">${ticks.map((v) => `<line x1="${x(v)}" x2="${x(v)}" y1="14" y2="${H}" stroke="rgba(236,230,214,.07)"/><text x="${x(v)}" y="10" text-anchor="middle">${v < 0 ? -v + " ←" : v}</text>`).join("")}</g>
+    ${people.map((p, i) => {
+      const yy = top + i * rowH, x0 = Math.max(0, x(p.b)), x1 = Math.min(W, x(p.d)), col = p.r === "ca" ? "#44c5c9" : "#7d8aa6";
+      const alive = p.b <= y && y <= p.d;
+      return `<g data-pp="${p.id}" style="cursor:pointer"><rect x="${x0}" y="${yy}" width="${Math.max(2, x1 - x0)}" height="18" rx="4" fill="${col}" fill-opacity="${alive ? .5 : .2}" stroke="${col}" stroke-opacity="${alive ? .9 : .35}"/>
+        <text class="lane-name" x="${Math.min(Math.max(x0 + 6, 4), W - 4)}" y="${yy + 13}" text-anchor="${x0 + 6 > W - 80 ? "end" : "start"}">${esc(pickText(p.n))}${alive ? ` <tspan class="lane-age">· ${y - p.b}</tspan>` : ""}</text></g>`;
+    }).join("")}
+    <line x1="${x(y)}" x2="${x(y)}" y1="14" y2="${H}" stroke="#e3b85a" stroke-width="2"/>
+  </svg><div class="empty">${hidden ? t("lanes_limit", { n: people.length, m: hidden }) + " " : ""}${t("lanes_hint")}</div>`;
+}
+
+/* ---------- Mening shahrim ---------- */
+let cityRuns = null, cityRunsFor = null;
+async function computeCityRuns(city) {
+  const runs = [];
+  for (const sy of state.slicesYears) {
+    const feats = await loadSlice(sy);
+    const owners = feats.filter((f) => d3.geoContains(f, city.ll)).sort((a, b) => a.properties.a - b.properties.a);
+    const n = owners[0] ? owners[0].properties.n : null;
+    const last = runs[runs.length - 1];
+    if (last && last.n === n) last.to = sy; else runs.push({ n, from: sy, to: sy });
+  }
+  return runs;
+}
+function ownerAt(city) {
+  const owners = (state.feats || []).filter((f) => d3.geoContains(f, city.ll)).sort((a, b) => a.properties.a - b.properties.a);
+  return owners[0] || null;
+}
+async function renderCity(light) {
+  const pane = $("pane-city"); if (pane.hidden && light) return;
+  const city = state.selCity;
+  const chips = `<div class="cities">${HZ_CITIES.map((c) => `<button type="button" data-city="${c.id}" aria-pressed="${city && city.id === c.id}">${esc(pickText(c.n))}</button>`).join("")}</div>`;
+  if (!city) { pane.innerHTML = `<div class="empty">${t("city_pick")}</div>${chips}`; return; }
+  const own = ownerAt(city);
+  let hist = `<div class="empty">${t("city_loading")}</div>`;
+  if (cityRunsFor === city.id && cityRuns) {
+    const nextYear = (sy) => { const i = state.slicesYears.indexOf(sy); return state.slicesYears[i + 1] || 2024; };
+    hist = cityRuns.slice().reverse().map((r) => {
+      const cur = state.sliceYear >= r.from && state.sliceYear <= r.to;
+      return `<button class="run${cur ? " cur" : ""}" data-jump="${r.from}"><span class="yr">${esc(fmtYear(r.from))} – ${esc(fmtYear(Math.min(nextYear(r.to) - 1, 2024)))}</span><span>${r.n ? esc(polityName(r.n)) : `<span style="color:var(--muted)">${t("city_none")}</span>`}</span></button>`;
+    }).join("");
+  }
+  pane.innerHTML = `${chips}<div class="now-owner"><span style="color:var(--muted);font-size:.8rem">${esc(t("city_now", { y: fmtYear(state.year) }))}</span><b>${own ? esc(polityName(own.properties.n)) : t("city_none")}</b></div><h3><span>${t("city_history")}</span></h3><div class="list">${hist}</div>`;
+  if (cityRunsFor !== city.id) {
+    cityRunsFor = city.id; cityRuns = null;
+    const runs = await computeCityRuns(city);
+    if (state.selCity && state.selCity.id === city.id) { cityRuns = runs; renderCity(); }
+  }
+}
+function selectCity(id) {
+  state.selCity = HZ_CITIES.find((c) => c.id === id);
+  refreshPins();
+  globe.pointOfView({ lat: state.selCity.ll[1], lng: state.selCity.ll[0], altitude: 1.4 }, 1200);
+  ctr.autoRotate = false; renderCity();
+}
+
+/* ---------- kartochkalar ---------- */
+function linkSet(qid, enTitle) {
+  if (!qid) return "";
+  const wl = lang === "uz-cyrl" ? "uz" : lang;
+  return `<div class="links"><a href="https://www.wikidata.org/wiki/Special:GoToLinkedPage/${wl}wiki/${qid}" target="_blank" rel="noopener">${t("open_wiki")} ↗</a><a href="https://www.wikidata.org/wiki/${qid}" target="_blank" rel="noopener">${t("open_wikidata")} ↗</a></div>`;
+}
+function showCard(html) { const c = $("card"); c.hidden = false; c.innerHTML = `<button class="close" type="button" aria-label="${esc(t("par_close"))}">✕</button>` + html; c.scrollTop = 0; c.style.animation = "none"; void c.offsetWidth; c.style.animation = ""; }
+function flyTo(ll, alt = 1.5) { ctr.autoRotate = false; globe.pointOfView({ lat: ll[1], lng: ll[0], altitude: alt }, 1300); }
+function openEvent(e, fly) {
+  if (fly) flyTo(e.ll);
+  const near = HZ_EVENTS.filter((o) => o !== e && Math.abs(o.y - e.y) <= Math.max(25, windowFor(e.y))).slice(0, 4);
+  const im = IMG["e:" + e.id];
+  const media = `<div class="media">${im ? `<img src="images/${esc(im.file)}" alt="">` : `<div class="ph" style="--phc:${rgba(CAT_COLOR[e.c], .55)}">${esc(fmtYear(e.y))}</div>`}</div>`;
+  showCard(`${media}<div class="kicker"><span class="dot" style="background:${CAT_COLOR[e.c]};margin:0"></span>${esc(t("cat_" + e.c))}</div>
+    <h2>${esc(pickText(e.t))}</h2><div class="meta">${esc(fmtYear(e.y))}</div>${e.uz ? `<span class="uztag">✦ ${t("uz_tag")}</span>` : ""}
+    <p>${esc(pickText(e.d))}</p>${isFallback(e.d) ? `<div class="fallback">${t("not_translated")}</div>` : ""}${creditLine(im)}
+    ${near.length ? `<div class="sub"><h4>${t("same_time")}</h4><ul class="list">${near.map(eventItem).join("")}</ul></div>` : ""}`);
+}
+function openPerson(p) {
+  flyTo(p.ll, 1.6);
+  const cont = HZ_PEOPLE.filter((o) => o !== p && o.b < p.d && o.d > p.b).map((o) => ({ o, ov: Math.min(o.d, p.d) - Math.max(o.b, p.b) })).sort((a, b) => b.ov - a.ov);
+  showCard(`<div class="kicker">${t("person")}</div><div class="portrait" style="margin-top:12px">${avatar(p, "lg")}<div><h2>${esc(pickText(p.n))}</h2><div class="meta">${esc(fmtYear(p.b))} – ${esc(fmtYear(p.d))}<br>${esc(pickText(p.o))}</div></div></div>${creditLine(IMG["p:" + p.id])}
+    ${cont.length ? `<div class="sub"><h4>${t("contemporaries")}</h4><ul class="list">${cont.map(({ o, ov }) => `<li><button class="item" data-pp="${o.id}"><span class="yr">${o.b < 0 ? -o.b + "←" : o.b}–${o.d < 0 ? -o.d + "←" : o.d}</span><span class="tt who">${avatar(o, "sm")}<span>${esc(pickText(o.n))}<small>${esc(t("overlap", { n: ov }))}</small></span></span></button></li>`).join("")}</ul></div>` : ""}`);
+}
+function openState(f) {
+  const n = f.properties.n, meta = state.polities[n] || [];
+  if (f.__c) flyTo(f.__c, 1.9);
+  const neighbours = (state.feats || []).filter((o) => o !== f && o.__c && d3.geoDistance(o.__c, f.__c) < .35).sort((a, b) => b.properties.a - a.properties.a).slice(0, 6);
+  showCard(`<div class="kicker"><span class="dot" style="background:${colorOf(n)};margin:0"></span>${t("state")}</div>
+    <h2>${esc(polityName(n))}</h2>${HZ_POLITY_NAMES[n] || lang === "en" ? "" : `<div class="fallback">${t("not_translated")}</div>`}
+    <div class="meta">${t("existed")}: ${esc(fmtYear(meta[0]))} – ${esc(fmtYear(meta[1]))}<br>${t("area_then")}: ${Math.round(f.properties.a).toLocaleString("ru-RU")} ${t("km2")}</div>
+    ${linkSet(meta[2], meta[3])}
+    ${neighbours.length ? `<div class="sub"><h4>${t("neighbours")}</h4><div class="list">${neighbours.map((o) => `<button class="statebar" data-st="${esc(o.properties.n)}"><span><span class="dot" style="background:${colorOf(o.properties.n)}"></span>${esc(polityName(o.properties.n))}</span></button>`).join("")}</div></div>` : ""}`);
+}
+
+/* ---------- vaqt jumbog'i: bizning sanalardan hisoblanadi ---------- */
+const ANCHORS = () => [
+  ...HZ_EVENTS.map((e) => ({ y: e.y, name: pickText(e.t) })),
+  ...HZ_PEOPLE.map((p) => ({ y: p.b, name: pickText(p.n) })),
+];
+function makeParadox() {
+  const A = ANCHORS();
+  for (let k = 0; k < 400; k++) {
+    const [a, b, c] = [0, 0, 0].map(() => A[Math.floor(Math.random() * A.length)]).sort((m, n) => m.y - n.y);
+    if (a.y === b.y || b.y === c.y) continue;
+    const d1 = b.y - a.y, d2 = c.y - b.y;
+    if (d2 < d1 * .8 && d1 > 300 && d2 > 100) return { a, b, c, d1, d2 };
+  }
+  return null;
+}
+function showParadox() {
+  const p = makeParadox(); if (!p) return;
+  const box = $("paradox"); box.hidden = false;
+  const W = 480, x = d3.scaleLinear().domain([p.a.y, p.c.y]).range([20, W - 20]);
+  box.innerHTML = `<div class="kicker">${t("par_kicker")}</div><h2>${esc(t("par_text", { a: p.a.name, b: p.b.name, c: p.c.name }))}</h2>
+  <svg viewBox="0 0 ${W} 70" preserveAspectRatio="none">
+    <line x1="${x(p.a.y)}" x2="${x(p.c.y)}" y1="34" y2="34" stroke="rgba(236,230,214,.25)" stroke-width="2"/>
+    <line x1="${x(p.a.y)}" x2="${x(p.b.y)}" y1="34" y2="34" stroke="#7d8aa6" stroke-width="4"/>
+    <line x1="${x(p.b.y)}" x2="${x(p.c.y)}" y1="34" y2="34" stroke="#e3b85a" stroke-width="4"/>
+    ${[p.a, p.b, p.c].map((q) => `<circle cx="${x(q.y)}" cy="34" r="5" fill="#ece6d6"/><text x="${x(q.y)}" y="58" text-anchor="middle">${esc(fmtYear(q.y))}</text>`).join("")}
+    <text x="${(x(p.a.y) + x(p.b.y)) / 2}" y="24" text-anchor="middle">${esc(t("years", { n: p.d1.toLocaleString("ru-RU") }))}</text>
+    <text x="${(x(p.b.y) + x(p.c.y)) / 2}" y="24" text-anchor="middle" style="fill:#e3b85a">${esc(t("years", { n: p.d2.toLocaleString("ru-RU") }))}</text>
+  </svg>
+  <div class="row"><button class="chipbtn" type="button" data-par="more">${t("par_more")}</button><button class="chipbtn" type="button" data-par="close">${t("par_close")}</button></div>`;
+}
+
+/* ---------- boshqaruv ---------- */
+function setYearFromSlider() { applyYear(posToYear(+$("slider").value)); }
+$("slider").addEventListener("input", () => { stopPlay(); setYearFromSlider(); });
+function setSlider(y) { $("slider").value = yearToPos(y); applyYear(y); }
+
+let raf = 0, lastTs = 0;
+function tick(ts) {
+  if (!state.playing) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0; lastTs = ts;
+  const s = $("slider"); let v = +s.value + dt * 9 * state.speed;
+  if (v >= 1000) { v = 1000; stopPlay(); }
+  s.value = v; const y = posToYear(v); if (y !== state.year) applyYear(y);
+  raf = requestAnimationFrame(tick);
+}
+function startPlay() { if (+$("slider").value >= 999) $("slider").value = 0; state.playing = true; lastTs = 0; $("playIcon").setAttribute("d", "M4 2.5h3v11H4zM9 2.5h3v11H9z"); $("play").classList.add("on"); $("play").setAttribute("aria-label", t("time_pause")); raf = requestAnimationFrame(tick); }
+function stopPlay() { state.playing = false; cancelAnimationFrame(raf); $("play").classList.remove("on"); $("playIcon").setAttribute("d", "M4 2.5v11l9-5.5z"); $("play").setAttribute("aria-label", "Play"); }
+$("play").addEventListener("click", () => state.playing ? stopPlay() : startPlay());
+$("speed").addEventListener("click", () => { const S = [1, 2, 5]; state.speed = S[(S.indexOf(state.speed) + 1) % S.length]; $("speed").textContent = state.speed + "×"; });
+addEventListener("keydown", (e) => {
+  if (e.target.matches("input, select")) return;
+  if (e.code === "Space") { e.preventDefault(); state.playing ? stopPlay() : startPlay(); }
+  if (e.key === "Escape") { $("card").hidden = true; $("paradox").hidden = true; }
+});
+
+function renderTicks() {
+  const TK = [[-3000, ""], [-2000, "mid"], [-1000, ""], [-500, "mid"], [1, ""], [500, "mid"], [1000, ""], [1250, "mid"], [1500, ""], [1700, "mid"], [1800, ""], [1900, "mid"], [2000, ""]];
+  $("ticks").innerHTML = TK.map(([y, cls]) => `<span class="${cls}" data-jump="${y}" style="left:${yearToPos(y) / 10}%">${y < 0 ? -y : y}</span>`).join("");
+  $("evmarks").innerHTML = HZ_EVENTS.map((e) => `<i class="${e.uz ? "uz" : ""}" style="left:${yearToPos(e.y) / 10}%"></i>`).join("");
+  const ERAS = [[-3400, -800, "#2a4a8a"], [-800, 500, "#3a8fb0"], [500, 1500, "#44c5c9"], [1500, 1914, "#c9a24e"], [1914, 2024, "#e3b85a"]];
+  $("eras").innerHTML = ERAS.map(([a, b, c]) => `<i style="width:${(yearToPos(b) - yearToPos(a)) / 10}%;background:${c}" title="${esc(t(eraKey(a + 1)))}"></i>`).join("");
+}
+
+// umumiy bosish ishlovchisi
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-ev],[data-pp],[data-st],[data-city],[data-jump],[data-par],[data-tab],.close");
+  if (!el) return;
+  if (el.classList.contains("close")) { $("card").hidden = true; return; }
+  if (el.dataset.ev) { const ev = HZ_EVENTS.find((x) => x.id === el.dataset.ev); stopPlay(); if (Math.abs(ev.y - state.year) > windowFor(state.year)) setSlider(ev.y); openEvent(ev, true); }
+  else if (el.dataset.pp) { openPerson(HZ_PEOPLE.find((x) => x.id === el.dataset.pp)); }
+  else if (el.dataset.st) { const f = (state.feats || []).find((x) => x.properties.n === el.dataset.st); if (f) openState(f); }
+  else if (el.dataset.city) { selectCity(el.dataset.city); }
+  else if (el.dataset.jump) { stopPlay(); setSlider(+el.dataset.jump); }
+  else if (el.dataset.par) { if (el.dataset.par === "more") showParadox(); else $("paradox").hidden = true; }
+  else if (el.dataset.tab) {
+    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b === el));
+    ["now", "lanes", "city", "about"].forEach((k) => { $("pane-" + k).hidden = k !== el.dataset.tab; });
+    if ($("panel").dataset.snap === "peek") setSnap("half");
+    if (el.dataset.tab === "lanes") renderLanes();
+    if (el.dataset.tab === "city") renderCity();
+  }
+});
+$("paradoxBtn").addEventListener("click", showParadox);
+$("uzland").addEventListener("click", () => {
+  const tab = document.querySelector('[data-tab="city"]'); tab.click();
+  if (!state.selCity || !UZ_POINTS.includes(state.selCity.id)) selectCity("samarqand"); else flyTo([64.5, 41.2], isPhone() ? 2.2 : 1.6);
+});
+$("brandBtn").addEventListener("click", () => { $("intro").classList.remove("gone"); });
+$("yearbox").addEventListener("click", () => {
+  stopPlay(); const box = $("yearbox"); if ($("yearInput")) return;
+  const inp = document.createElement("input"); inp.id = "yearInput"; inp.type = "number"; inp.inputMode = "numeric"; inp.min = -3400; inp.max = 2024; inp.value = state.year; inp.setAttribute("aria-label", t("year_jump")); inp.title = t("year_jump");
+  box.style.display = "none"; box.after(inp); inp.focus(); inp.select();
+  const done = (ok) => { if (ok) { let v = Math.round(+inp.value); if (v) { v = Math.max(-3400, Math.min(2024, v)); setSlider(v); } } inp.remove(); box.style.display = ""; };
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") done(true); if (e.key === "Escape") done(false); });
+  inp.addEventListener("blur", () => done(true));
+});
+/* ---------- telefon: tortiladigan pastki panel ---------- */
+function setSnap(s) { $("panel").dataset.snap = s; setTimeout(layout, 340); }
+(() => {
+  const g = $("grab"); let y0 = null, moved = false;
+  g.addEventListener("pointerdown", (e) => { y0 = e.clientY; moved = false; g.setPointerCapture(e.pointerId); });
+  g.addEventListener("pointermove", (e) => { if (y0 !== null && Math.abs(e.clientY - y0) > 8) moved = true; });
+  g.addEventListener("pointerup", (e) => {
+    if (y0 === null) return; const dy = e.clientY - y0, cur = $("panel").dataset.snap; y0 = null;
+    const order = ["peek", "half", "full"]; let i = order.indexOf(cur);
+    if (!moved) i = cur === "peek" ? 1 : 0; else if (dy < -30) i = Math.min(2, i + 1); else if (dy > 30) i = Math.max(0, i - 1);
+    setSnap(order[i]);
+  });
+})();
+
+/* ---------- til ---------- */
+function renderLang() {
+  document.documentElement.lang = lang;
+  $("lang").innerHTML = LANGS.map((l) => `<option value="${l.code}" ${l.code === lang ? "selected" : ""}>${l.label}</option>`).join("");
+  document.querySelectorAll("[data-i]").forEach((el) => { el.textContent = t(el.dataset.i); });
+  $("brandAuthor").textContent = `(${t("author_short")}: ${t("name_diana")})`;
+  renderIntro(); if (state.feats) updateUzOwners(); renderUzEvent();
+  $("pane-about").innerHTML = `<div class="credits"><h3><span>${t("credits_title")}</span></h3>
+    <dl><div><dt>${t("credit_author")}</dt><dd>${t("name_diana")}</dd></div>
+    <div><dt>${t("credit_dev")}</dt><dd>${t("name_dev")}</dd></div>
+    <div><dt>${t("credit_support")}</dt><dd><a href="https://nazarai.uz" target="_blank" rel="noopener">Nazar AI</a> <span class="host">nazarai.uz</span></dd></div></dl></div>`
+    + t("about_html", { ev: HZ_EVENTS.length, pp: HZ_PEOPLE.length }) + `<p class="src">${t("sources_html")}</p>`;
+  $("nazarBadge").innerHTML = `${t("credit_support")} <b>Nazar AI</b>`;
+  renderYear(); renderNow(); renderTicks(); renderLanes(); renderCity();
+  state.pinKey = null; refreshPins(); if (state.slicesYears.length) applyYear(state.year);
+  globe.pointsData(globe.pointsData());
+  if (!$("card").hidden) $("card").hidden = true;
+  if (!$("paradox").hidden) showParadox();
+}
+function renderIntro() {
+  $("introTitle").innerHTML = t("intro_title"); $("introText").textContent = t("intro_text"); $("introGo").textContent = t("intro_go");
+  $("introLangs").innerHTML = LANGS.map((l) => `<button type="button" data-lang="${l.code}" aria-pressed="${l.code === lang}">${l.label}</button>`).join("");
+  $("introBy").innerHTML = `${t("credit_author")}: <b>${t("name_diana")}</b> · ${t("credit_dev")}: <b>${t("name_dev")}</b> · ${t("credit_support")} <b>Nazar AI</b>`;
+}
+$("introLangs").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (!b) return; lang = b.dataset.lang; try { localStorage.setItem("hz-lang", lang); } catch (er) {} renderLang(); });
+$("introGo").addEventListener("click", () => {
+  $("intro").classList.add("gone"); try { localStorage.setItem("hz-intro", "1"); } catch (e) {}
+  globe.pointOfView({ lat: 40, lng: 64, altitude: isPhone() ? 2.6 : 1.9 }, 2200);
+});
+$("lang").addEventListener("change", (e) => { lang = e.target.value; try { localStorage.setItem("hz-lang", lang); } catch (er) {} renderLang(); });
+
+/* ---------- ishga tushirish ---------- */
+(async function init() {
+  renderLang();
+  try { if (localStorage.getItem("hz-intro")) $("intro").classList.add("gone"); } catch (e) {}
+  layout();
+  const [years, land, pol, uzRings] = await Promise.all([fetch("b/years.json").then((r) => r.json()), fetch("land.json").then((r) => r.json()), fetch("polities.json").then((r) => r.json()), fetch("uz.json").then((r) => r.json())]);
+  UZ = { type: "Feature", geometry: { type: "MultiPolygon", coordinates: uzRings.map((r) => [r]) } };
+  HZ_EVENTS.forEach((e) => { e.uz = inUz(e.ll); });
+  globe.pathsData(uzRings);
+  renderTicks();
+  state.slicesYears = years; state.polities = pol;
+  try { const r = await fetch("images/credits.json"); if (r.ok) IMG = await r.json(); } catch (e) {}
+  state.land = topojson.feature(land, land.objects.land).features.map((f) => (f.__land = true, f));
+  $("slider").value = yearToPos(state.year);
+  await applyYear(state.year, { force: true });
+  $("loading").hidden = true; layout();
+  // qolgan kesimlarni fon rejimida oldindan yuklash
+  setTimeout(() => years.forEach((y, i) => setTimeout(() => loadSlice(y), i * 60)), 1500);
+})();
+})();
+</script>
+
+</body>
+</html>

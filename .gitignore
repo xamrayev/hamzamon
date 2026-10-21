@@ -1,0 +1,7 @@
+# Commons'dan yuklangan asl nusxalar (50 MB). Saytga site/images/ dagi siqilgan nusxalar ketadi.
+tools/images/
+
+# OS va muharrir fayllari
+.DS_Store
+*.swp
+__pycache__/
